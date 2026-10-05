@@ -7,11 +7,11 @@
 
 ---
 
-## 📄 PAPER
+# 📄 PAPER
 
 Before reading this paper, I already knew how to use XGBoost in machine learning projects.
 
-I knew that XGBoost is a powerful tree-based model and I had used it for problems like classification. I also knew some of its parameters such as:
+I knew that XGBoost is a powerful tree-based model and I had used it for classification problems. I also knew parameters such as:
 
 * `n_estimators`
 * `max_depth`
@@ -25,13 +25,13 @@ So I decided to read the original XGBoost paper.
 
 My goal here is **not to reproduce the paper or implement XGBoost from scratch**.
 
-Instead, I am trying to understand:
+I want to understand:
 
-> **What problem were the authors trying to solve, what ideas did they introduce, and why does XGBoost work the way it does?**
+> **What problem were the authors trying to solve, what mathematical ideas did they use, and how did those ideas become a scalable machine learning system?**
 
 ---
 
-# 🔎 My Reading Path
+# 🔎 MY READING PATH
 
 ```text
 📄 PAPER
@@ -44,9 +44,9 @@ Instead, I am trying to understand:
    ↓
 📐 MATHEMATICS
    ↓
-📊 DIAGRAM
+📊 ALGORITHM
    ↓
-⚙️ ALGORITHM
+⚙️ SYSTEM DESIGN
    ↓
 🔗 PRACTICAL CONNECTION
    ↓
@@ -59,85 +59,80 @@ Instead, I am trying to understand:
 
 # ❓ PROBLEM
 
-## What problem is this paper actually solving?
+## What problem is the paper solving?
 
-The paper is not simply saying:
+The paper is not simply proposing another tree-boosting algorithm.
 
-> "Let's create another boosting algorithm."
+The larger question is:
 
-The bigger problem is:
+> **How can tree boosting remain accurate while also becoming computationally efficient and scalable to large datasets?**
 
-> **How can we make tree boosting accurate while also making it fast and scalable for large datasets?**
+Gradient tree boosting was already a powerful machine learning approach, but large-scale training creates several challenges:
 
-Gradient boosting was already a strong machine learning technique.
+* finding good tree splits can be expensive
+* repeatedly processing feature values can be costly
+* datasets can be sparse
+* datasets may not fit completely in memory
+* training needs to be efficient on multiple machines
 
-But when the dataset becomes large, several problems appear.
-
-For example:
-
-* finding the best tree split can become expensive
-* repeatedly sorting feature values can take time
-* datasets can contain many missing or zero values
-* storing and processing large datasets becomes difficult
-* training can become slow
-* distributed or out-of-memory training becomes challenging
-
-So the authors were looking at the problem from two sides:
+The authors therefore approach the problem from both the **learning algorithm** and the **systems** side.
 
 ```text
-                 TREE BOOSTING
-                      │
-          ┌───────────┴───────────┐
-          ↓                       ↓
-     ML / Algorithm          System / Hardware
-          │                       │
-          ↓                       ↓
-   How to find good       How to process data
-   tree splits?           efficiently?
-          │                       │
-          └───────────┬───────────┘
-                      ↓
-              SCALABLE XGBOOST
+                    TREE BOOSTING
+                         │
+          ┌──────────────┴──────────────┐
+          ↓                             ↓
+    Learning Algorithm             System Design
+          │                             │
+          ↓                             ↓
+  How should the tree          How should the data
+  be constructed?              be processed efficiently?
+          │                             │
+          └──────────────┬──────────────┘
+                         ↓
+                  SCALABLE BOOSTING
 ```
 
-This was one of the things I found interesting in the paper.
+This was one of the first things I noticed:
 
-**XGBoost is not only about the learning algorithm.**
-
-A big part of the paper is also about **how the algorithm is implemented efficiently.**
+> **XGBoost is not only about improving the prediction algorithm. It is also about engineering the training system efficiently.**
 
 ---
 
 # 💡 KEY IDEA
 
-After reading the paper, I would summarize the main idea like this:
+My current understanding of the paper is:
 
-> **XGBoost combines a regularized gradient boosting objective with smarter tree-learning algorithms and system-level optimizations so that tree boosting can work efficiently on large and sparse datasets.**
+> **XGBoost combines a regularized tree-boosting objective, second-order optimization, efficient split-finding methods, sparse-data handling, and system-level optimizations to make gradient tree boosting scalable.**
 
 I initially thought:
 
 ```text
-XGBoost = Gradient Boosting + some improvements
+XGBoost
+   =
+Gradient Boosting
++
+Some improvements
 ```
 
-But after reading the paper, I see it more like:
+After reading the paper, I see it more like:
 
 ```text
-                     XGBoost
-                        │
-       ┌────────────────┼────────────────┐
-       ↓                ↓                ↓
-  Optimization      Tree Learning     System Design
-       │                │                │
-       ↓                ↓                ↓
- Regularization    Better split      Column blocks
- Second-order      finding           Parallelism
- approximation     Sparse data       Cache efficiency
-                                      Out-of-core
-                                      Distributed
+                         XGBoost
+                            │
+          ┌─────────────────┼─────────────────┐
+          ↓                 ↓                 ↓
+     Optimization      Tree Learning      System Design
+          │                 │                 │
+          ↓                 ↓                 ↓
+   Regularization     Split finding      Column blocks
+   Gradient           Exact /            Parallelism
+   Hessian            approximate         Cache awareness
+   2nd-order          methods             Out-of-core
+   approximation      Sparsity            Distributed
 ```
 
-So there isn't just **one magic trick**.
+So there is not one single idea responsible for XGBoost.
 
 Several ideas work together.
 
@@ -145,13 +140,9 @@ Several ideas work together.
 
 # 🧠 SIMPLE EXPLANATION
 
-## First: What is boosting doing?
+## Boosting
 
-Suppose I have a model that is making mistakes.
-
-Instead of trying to build one huge perfect tree, boosting builds trees **one after another**.
-
-Each new tree tries to improve what the previous trees were doing.
+In boosting, trees are added sequentially.
 
 A simplified view is:
 
@@ -160,557 +151,602 @@ Training Data
       ↓
 Initial Prediction
       ↓
-Where is the model making mistakes?
+Build a tree
       ↓
-Build Tree 1
+Update prediction
       ↓
-Update Prediction
+Build another tree
       ↓
-What mistakes are still left?
+Update prediction
       ↓
-Build Tree 2
+Continue...
       ↓
-Update Prediction
-      ↓
-Build Tree 3
-      ↓
-      ...
-      ↓
-Final Prediction
+Final Model
 ```
 
-So the model gradually improves.
+At each boosting round, the new tree is added to the existing model.
 
----
+The prediction update can be written as:
 
-## But how does XGBoost decide what the next tree should do?
+### Equation
 
-This is where the mathematics comes in.
+$$
+\hat{y}_i^{(t)}
+=
+\hat{y}_i^{(t-1)}
++
+f_t(x_i)
+$$
 
-Instead of simply looking at the raw prediction error, XGBoost looks at the **loss function** and uses information from its:
+Here:
 
-* first derivative → gradient
-* second derivative → Hessian
+* $\hat{y}_i^{(t)}$ = prediction after round $t$
+* $\hat{y}_i^{(t-1)}$ = previous prediction
+* $f_t$ = newly added tree
+* $x_i$ = input example
 
-This gives XGBoost more information about how the loss is changing.
+So the new tree is not replacing the previous model.
+
+It contributes an additional correction.
 
 ---
 
 # 📐 MATHEMATICS
 
-## 1. The Objective Function
+This is the part I found most useful because the paper connects the mathematical objective directly to how the tree is constructed.
 
-One of the important equations in the paper is:
+---
 
-\sum_i l(\hat y_i,y_i)
+## 1. Regularized Objective
+
+The objective function used by XGBoost is:
+
+$$
+\mathcal{L}(\phi)
+=
+\sum_{i=1}^{n}
+l(\hat{y}_i,y_i)
 +
-\sum_k \Omega(f_k)\
-
+\sum_{k=1}^{K}
+\Omega(f_k)
 $$
 
-At first this equation looks complicated.
+**Equation (1)**
 
-But I can read it as:
+where:
 
-```text
-                XGBoost Objective
-                       │
-             ┌─────────┴─────────┐
-             ↓                   ↓
-       Prediction Error      Model Complexity
-             │                   │
-             ↓                   ↓
-            Loss          Regularization
-             │                   │
-             └─────────┬─────────┘
-                       ↓
-                  Final Objective
-```
+* $l(\hat{y}_i,y_i)$ = training loss
+* $f_k$ = the $k$-th tree
+* $K$ = number of trees
+* $\Omega(f_k)$ = complexity penalty for the tree
 
-In simple words:
+The regularization term is defined as:
 
-> **XGBoost does not only want predictions to be accurate. It also wants to control the complexity of the trees.**
-
-The paper defines the tree complexity as:
-
-\gamma T\
-+\
-\frac{1}{2}\lambda ||w||^2\
 $$
+\Omega(f)
+=
+\gamma T
++
+\frac{1}{2}\lambda
+\|w\|^2
+$$
+
+**Equation (2)**
 
 where:
 
 * $T$ = number of leaves
-* $w$ = leaf weights
-* $\gamma$ = penalty related to adding leaves
+* $w$ = vector of leaf weights
+* $\gamma$ = penalty for tree complexity
 * $\lambda$ = regularization on leaf weights
 
-So the objective is basically:
+### My understanding
 
-> **Make prediction errors small, but don't make the tree unnecessarily complicated.**
+The objective has two parts:
+
+```text
+Prediction Loss
+      +
+Tree Complexity
+      ↓
+Overall Objective
+```
+
+So XGBoost is not only trying to minimize prediction error.
+
+It is also controlling the complexity of the trees.
 
 ---
 
-# 🧠 Why does regularization matter?
+# 2. Objective at Boosting Round $t$
 
-Imagine two trees give almost the same prediction quality.
+At boosting round $t$, the model already contains the previous trees.
 
-### Tree A
+The objective can be written as:
 
-```text
-        Root
-       /    \
-      /      \
-    Leaf    Leaf
-```
+$$
+\mathcal{L}^{(t)}
+=
+\sum_{i=1}^{n}
+l
+\left(
+y_i,
+\hat{y}_i^{(t-1)}
++
+f_t(x_i)
+\right)
++
+\Omega(f_t)
+$$
 
-Only a few leaves.
+**Equation (3)**
 
-### Tree B
+The important part here is that we are now trying to find the **new tree $f_t$**.
 
-```text
-                 Root
-               /      \
-             /          \
-           /              \
-        many              many
-       leaves             leaves
-```
-
-Tree B is more complicated.
-
-If both perform similarly, we don't necessarily want the unnecessarily complicated tree.
-
-So XGBoost includes tree complexity directly in its objective.
-
-That was an important connection for me:
-
-> **Regularization is not something added separately after training. It is part of the objective used while building the tree.**
+So instead of optimizing all trees again, the current boosting step focuses on finding a good additional tree.
 
 ---
 
-# 📐 2. Gradient and Hessian
+# 3. Gradient and Hessian
 
-For the current prediction, XGBoost calculates:
+To approximate the loss for the new tree, XGBoost uses the first and second derivatives.
 
-$$\
-g_i =\
-\frac{\partial l(y_i,\hat y_i)}\
-{\partial \hat y_i}\
+### Gradient
+
+$$
+g_i
+=
+\frac{
+\partial l(y_i,\hat{y}_i^{(t-1)})
+}{
+\partial \hat{y}_i^{(t-1)}
+}
 $$
 
-and
+### Hessian
 
-$$\
-h_i =\
-\frac{\partial^2 l(y_i,\hat y_i)}\
-{\partial \hat y_i^2}\
+$$
+h_i
+=
+\frac{
+\partial^2 l(y_i,\hat{y}_i^{(t-1)})
+}{
+\partial (\hat{y}_i^{(t-1)})^2
+}
 $$
 
-I understand them in a simpler way as:
+Here:
+
+* $g_i$ describes the first-order change
+* $h_i$ describes the second-order curvature
+
+My simpler understanding:
 
 ```text
 Gradient
-   ↓
-Which direction should the prediction move?
+    ↓
+Direction of change
 
 Hessian
-   ↓
-How does the loss curve behave around that point?
-   ↓
-How strongly should we make the update?
+    ↓
+Curvature of the loss
 ```
 
-A simple analogy:
-
-> **Gradient tells me which way to go. Hessian gives me information about the shape of the road.**
-
-This allows XGBoost to use a **second-order approximation** of the loss.
+The Hessian was one of the concepts I had to think about more carefully because I was initially much more familiar with gradient-based explanations than second-order optimization.
 
 ---
 
-# 📐 3. Second-Order Approximation
+# 4. Second-Order Approximation
 
-The paper then uses a second-order approximation:
+Using the gradient and Hessian, the paper applies a second-order Taylor approximation.
 
+The objective becomes:
+
+$$
+\tilde{\mathcal{L}}^{(t)}
+=
 \sum_{i=1}^{n}
 \left[
 g_i f_t(x_i)
 +
-\frac{1}{2}h_i f_t(x_i)^2
+\frac{1}{2}
+h_i f_t^2(x_i)
 \right]
 +
-\Omega(f_t)\
+\Omega(f_t)
+$$
 
-$$$
+**Equation (5)**
 
-I don't want to look at this equation only as mathematics.
+This equation was important for me because it connects the derivatives directly to tree construction.
 
-I read it as:
+The new tree is being evaluated using:
 
 ```text
-For the new tree:
-
-       Gradient information
-                +
-       Curvature information
-                +
-       Tree complexity
-                ↓
-       Decide how the new tree
-       should improve the model
+Gradient information
+        +
+Hessian information
+        +
+Tree regularization
+        ↓
+New tree objective
 ```
 
-This was one of the main mathematical ideas I wanted to understand from the paper.
+So the mathematics is not separate from the tree-building process.
+
+It is what allows the algorithm to evaluate candidate tree structures.
 
 ---
 
-# 📐 4. What happens inside a leaf?
+# 5. Representing a Tree
 
-Suppose some training examples end up in the same leaf.
-
-For those examples, we calculate:
-
-$$\
-G = \sum\_{i \in I} g_i\
-$$$
-
-and
-
-$$\
-H = \sum\_{i \in I} h_i\
-$$
-
-The paper gives the optimal leaf weight as:
-
--\frac{G}{H+\lambda}\
+A tree can be represented using:
 
 $$
-
-In my words:
-
-> XGBoost uses the accumulated gradient and Hessian information of the examples inside a leaf to decide what value that leaf should output.
-
-So instead of thinking:
-
-```text
-Leaf → random prediction
-```
-
-I think:
-
-```text
-Examples reaching leaf
-        ↓
-Collect gradient information
-        ↓
-Collect Hessian information
-        ↓
-Apply regularization
-        ↓
-Calculate best leaf weight
-```
-
----
-
-# 📐 5. How does XGBoost choose a split?
-
-This is another important part.
-
-Suppose we have:
-
-```text
-Feature: Age
-
-18
-21
-25
-31
-40
-52
-```
-
-We could try different split points:
-
-```text
-Age < 21
-Age < 25
-Age < 31
-Age < 40
-Age < 52
-```
-
-For every possible split, we want to know:
-
-> **Does this split improve the objective enough?**
-
-The paper gives a split score:
-
-\gamma\
+f_t(x)
+=
+w_{q(x)}
 $$
 
 where:
 
-* $G_L, H_L$ → gradient and Hessian sums on the left
-* $G_R, H_R$ → gradient and Hessian sums on the right
-* $G,H$ → values before splitting
-* $\lambda$ → regularization
-* $\gamma$ → penalty for creating the split
+* $q(x)$ assigns an example to a leaf
+* $w_{q(x)}$ is the weight of that leaf
 
-I don't need to memorize the whole equation.
+For a particular leaf $j$, let:
 
-The important idea I take from it is:
+$$
+I_j
+=
+\{i\mid q(x_i)=j\}
+$$
 
-> **A split is useful only if separating the data into two groups gives enough improvement to justify the additional complexity.**
+This means $I_j$ contains the training examples that reach leaf $j$.
 
 ---
 
-# 📊 DIAGRAM — SPLIT FINDING
+# 6. Gradient and Hessian Sums in a Leaf
+
+For leaf $j$, define:
+
+$$
+G_j
+=
+\sum_{i\in I_j}g_i
+$$
+
+and
+
+$$
+H_j
+=
+\sum_{i\in I_j}h_i
+$$
+
+These two quantities summarize the examples that reach that leaf.
+
+The optimization therefore does not need to treat every example independently when calculating the leaf weight.
+
+It can work with the aggregated statistics $G_j$ and $H_j$.
+
+---
+
+# 7. Optimal Leaf Weight
+
+For a fixed tree structure, the optimal weight of leaf $j$ is:
+
+$$
+w_j^*
+=
+-\frac{G_j}{H_j+\lambda}
+$$
+
+**Equation (5)**
+
+This equation became much easier for me to understand after separating the notation:
 
 ```text
-                 Current Node
-                     │
-                     │
-             Try possible splits
-                     │
-       ┌─────────────┼─────────────┐
-       ↓             ↓             ↓
-    Split A       Split B       Split C
-       │             │             │
-       ↓             ↓             ↓
- Calculate        Calculate      Calculate
-   Gain             Gain           Gain
-       │             │             │
-       └─────────────┼─────────────┘
-                     ↓
-              Compare gains
-                     ↓
-              Best split
-                     ↓
-              Split the node
+G_j
+ ↓
+Total gradient in the leaf
+
+H_j
+ ↓
+Total Hessian in the leaf
+
+λ
+ ↓
+Regularization
+
+        ↓
+
+Optimal leaf weight
 ```
 
-So the tree is not just randomly choosing a feature and threshold.
+So the leaf value is not chosen arbitrarily.
 
-It evaluates how useful a split is.
+It is obtained by minimizing the regularized objective for that leaf.
 
 ---
 
-# ⚙️ ALGORITHM — EXACT SPLIT FINDING
+# 8. Tree Structure and Objective
 
-The paper describes an **exact greedy algorithm**.
+After substituting the optimal leaf weights, the objective for a tree can be written as:
 
-The basic idea is:
+$$
+\tilde{\mathcal{L}}^{(t)}
+=
+-
+\frac{1}{2}
+\sum_{j=1}^{T}
+\frac{G_j^2}{H_j+\lambda}
++
+\gamma T
+$$
+
+**Equation (6)**
+
+This equation is especially useful because it shows how the quality of a tree depends on:
+
+* the gradient sums
+* the Hessian sums
+* regularization
+* number of leaves
+
+At this point, the question becomes:
+
+> **How do we decide whether splitting a leaf makes the tree better?**
+
+That leads to split finding.
+
+---
+
+# 9. Split Evaluation
+
+Suppose a node is divided into a left child and a right child.
+
+Define:
+
+$$
+G_L=\sum_{i\in I_L}g_i,
+\qquad
+H_L=\sum_{i\in I_L}h_i
+$$
+
+and:
+
+$$
+G_R=\sum_{i\in I_R}g_i,
+\qquad
+H_R=\sum_{i\in I_R}h_i
+$$
+
+Before splitting:
+
+$$
+G=G_L+G_R
+$$
+
+$$
+H=H_L+H_R
+$$
+
+The paper evaluates the candidate split using:
+
+$$
+\mathcal{L}_{\text{split}}
+=
+\frac{1}{2}
+\left[
+\frac{G_L^2}{H_L+\lambda}
++
+\frac{G_R^2}{H_R+\lambda}
+-
+\frac{G^2}{H+\lambda}
+\right]
+-
+\gamma
+$$
+
+**Equation (7)**
+
+This is one of the most important equations for understanding how XGBoost chooses splits.
+
+### My understanding
+
+For every candidate split, the algorithm asks:
 
 ```text
-For every feature
+Before split
+     ↓
+One leaf
+     ↓
+Evaluate objective
+
+After split
+     ↓
+Two leaves
+     ↓
+Evaluate objective
+
+Compare the two
+     ↓
+Is the split useful enough?
+```
+
+The $\gamma$ term matters because creating additional leaves increases model complexity.
+
+So a split must provide enough improvement to justify that additional complexity.
+
+---
+
+# 📊 SPLIT FINDING
+
+```text
+                    Current Node
+                         │
+                         ↓
+                Candidate split
+                         │
+          ┌──────────────┴──────────────┐
+          ↓                             ↓
+       Left child                    Right child
+          │                             │
+          ↓                             ↓
+    Calculate G_L,H_L             Calculate G_R,H_R
+          │                             │
+          └──────────────┬──────────────┘
+                         ↓
+                  Evaluate split
+                         ↓
+                  Compare candidates
+                         ↓
+                   Best split
+```
+
+This is the connection I was looking for between the equation and the actual tree-building process.
+
+---
+
+# ⚙️ 10. Exact Greedy Split Finding
+
+The exact greedy method considers candidate split points directly.
+
+A simplified version is:
+
+```text
+For each feature
       ↓
 Sort feature values
       ↓
-Try possible split points
+Move through possible split points
       ↓
-Calculate gradient/Hessian statistics
+Update G_L and H_L
       ↓
-Calculate split gain
+Calculate G_R and H_R
       ↓
-Keep the best split
+Evaluate split
+      ↓
+Keep the best candidate
 ```
 
-In pseudocode-like form:
-
-```text
-For each feature:
-    sort the feature values
-
-    move from left to right:
-        add examples to the left side
-        remaining examples stay on right
-
-        calculate gain
-
-        remember the best gain
-
-Choose the split with the highest gain
-```
-
-This works, but there is a problem.
-
----
-
-# ❓ Why not just check every possible split?
-
-Because the dataset can be huge.
-
-Imagine:
-
-```text
-1,000,000 rows
-×
-100 features
-```
-
-Trying every possible split repeatedly can become expensive.
-
-This leads to another idea in the paper.
-
----
-
-# 💡 APPROXIMATE SPLIT FINDING
-
-Instead of checking every possible value, XGBoost can generate a smaller number of candidate split points.
-
-For example:
-
-```text
-All possible values
-
-1  2  3  4  5  6  7  8  9  10
-|  |  |  |  |  |  |  |  |  |
-          ↓
-
-Candidate split points
-
-2        5        8
-|--------|--------|
-```
-
-Instead of checking everything:
-
-```text
-10 possible positions
-```
-
-we may check:
-
-```text
-3 candidate positions
-```
-
-The idea is:
-
-> **Spend less computation on split search while keeping the important information needed to find a good split.**
-
----
-
-# 📊 EXACT VS APPROXIMATE
-
-```text
-                 Split Finding
-                      │
-             ┌────────┴────────┐
-             ↓                 ↓
-           Exact           Approximate
-             │                 │
-             ↓                 ↓
-       Check many/all      Candidate
-       split points        split points
-             │                 │
-             ↓                 ↓
-        More expensive      Faster
-             │                 │
-             ↓                 ↓
-        More detailed      Small loss of
-                           precision
-```
-
-The paper shows that a reasonable approximation can achieve accuracy close to exact greedy split finding.
-
-That trade-off is interesting to me:
-
-> **We don't always need to examine everything if we can keep the important information.**
-
----
-
-# 📐 WEIGHTED QUANTILE SKETCH
-
-This was one of the more difficult parts for me initially.
-
-The paper introduces a **Weighted Quantile Sketch**.
-
-The basic problem is:
-
-> If we are going to choose candidate split points using quantiles, how should we choose them when the training examples have different importance/weights?
-
-The paper defines a weighted rank:
-
-\frac{
-\sum_{(x,h)\in\mathcal D_k,\ x<z} h
-}{
-\sum_{(x,h)\in\mathcal D_k}h
-}\
+For a sorted feature:
 
 $$
+x_{1k}\leq x_{2k}\leq\cdots\leq x_{nk}
+$$
 
-The important part for me is not memorizing the equation.
+As the split point moves, the statistics can be updated:
 
-It is understanding that:
+$$
+G_L
+\leftarrow
+G_L+g_j
+$$
 
-```text
-Normal quantile
-      ↓
-Looks at positions of values
+$$
+H_L
+\leftarrow
+H_L+h_j
+$$
 
-Weighted quantile
-      ↓
-Also considers the importance/weight
-of those values
-```
+and the right-side statistics can be obtained from the totals:
 
-So XGBoost's approximation is not simply:
+$$
+G_R=G-G_L
+$$
 
-> "Take random bins."
+$$
+H_R=H-H_L
+$$
 
-There is mathematical reasoning behind how the candidate split points are selected.
-
----
-
-# 📊 WEIGHTED QUANTILE — INTUITION
-
-Imagine we have:
-
-```text
-Value       Weight
-
-10            1
-20            1
-30            1
-40           10
-50            1
-```
-
-The value `40` has much more weight.
-
-A normal quantile calculation treats each row equally.
-
-A weighted quantile considers that `40` represents much more weight in the distribution.
-
-So:
-
-```text
-Normal view
-10 ── 20 ── 30 ── 40 ── 50
-
-Weighted view
-10 ─ 20 ─ 30 ───────── 40 ─ 50
-                     ↑
-                much more weight
-```
-
-This helps the approximate split-finding process preserve useful information.
+This avoids recomputing the sums from scratch for every candidate.
 
 ---
 
-# ⚙️ SPARSITY-AWARE LEARNING
+# ❓ Why approximate split finding?
 
-Another part I found interesting was how XGBoost deals with sparse data.
+The exact method can become expensive when the dataset contains a very large number of rows and features.
 
-Real datasets can contain lots of:
+Instead of examining every possible split point, XGBoost can use a smaller set of candidate thresholds.
 
-- missing values
-- zeros
-- sparse features
+```text
+Exact
+────────────────────────────
+Check many possible points
 
-For example, after one-hot encoding:
+Approximate
+────────────────────────────
+Select representative points
+```
+
+The goal is to reduce computation while keeping enough information to find good splits.
+
+---
+
+# 📐 11. Weighted Quantile Sketch
+
+For approximate split finding, the paper introduces the **Weighted Quantile Sketch**.
+
+For feature $k$, the weighted rank function is:
+
+$$
+r_k(z)
+=
+\frac{
+\displaystyle
+\sum_{\substack{(x,h)\in\mathcal{D}_k\\x<z}}h
+}{
+\displaystyle
+\sum_{(x,h)\in\mathcal{D}_k}h
+}
+$$
+
+The important difference from an ordinary quantile is that the distribution is weighted using the Hessian values.
+
+Candidate points are selected so that the weighted distribution is represented with controlled error.
+
+The paper expresses the approximation condition as:
+
+$$
+r_k(s_{k,j+1})
+-
+r_k(s_{k,j})
+<
+\epsilon
+$$
+
+where $\epsilon$ controls the approximation accuracy.
+
+### My understanding
+
+I do not want to memorize this equation.
+
+What I understand is:
+
+```text
+All possible feature values
+          ↓
+Weighted distribution
+          ↓
+Select representative points
+          ↓
+Use them as candidate splits
+          ↓
+Reduce split-search cost
+```
+
+The weighting is important because the optimization itself uses Hessian information.
+
+---
+
+# ⚙️ 12. Sparsity-Aware Learning
+
+Large real-world datasets can contain many missing or zero entries.
+
+This is especially common with sparse features such as one-hot encoded variables.
+
+A simplified example:
 
 ```text
 Feature A   Feature B   Feature C   Feature D
@@ -721,136 +757,96 @@ Feature A   Feature B   Feature C   Feature D
 0              1           0           0
 ```
 
-Most values are zero.
+XGBoost introduces a sparsity-aware split-finding method.
 
-A naive algorithm could waste computation processing all of those entries.
+The important idea is that the algorithm can learn a **default direction** for missing values while evaluating a split.
 
-XGBoost instead uses a **sparsity-aware split-finding algorithm**.
+```text
+                 Candidate Split
+                       │
+              ┌────────┴────────┐
+              ↓                 ↓
+        Default Left       Default Right
+              │                 │
+              ↓                 ↓
+        Evaluate score     Evaluate score
+              │                 │
+              └────────┬────────┘
+                       ↓
+                 Better direction
+```
 
-The important idea is:
-
-> **Learn where missing values should go instead of forcing us to manually fill them first.**
+This means missing values do not necessarily have to be handled only through a separate preprocessing step.
 
 ---
 
-# 📊 SPARSITY-AWARE IDEA
+# ⚙️ 13. System-Level Design
+
+This was the part that changed my understanding of XGBoost the most.
+
+The paper does not stop at the mathematical optimization.
+
+It also discusses how to make the implementation efficient.
+
+Important system ideas include:
+
+* column blocks
+* parallel computation
+* cache-aware computation
+* out-of-core learning
+* distributed learning
+
+A simplified picture is:
 
 ```text
-                 Feature
+                 XGBoost
                     │
-          ┌─────────┴─────────┐
-          ↓                   ↓
-     Non-missing             Missing
-       values                 values
-          │                   │
-          ↓                   │
-     Find best split          │
-          │                   │
-          └─────────┬─────────┘
-                    ↓
-             Try default left
-                    │
-                    ↓
-              Calculate gain
-                    │
-                    ↓
-             Try default right
-                    │
-                    ↓
-              Calculate gain
-                    │
-                    ↓
-             Choose better one
+       ┌────────────┴────────────┐
+       ↓                         ↓
+  Learning Algorithm        System Design
+       │                         │
+       ↓                         ↓
+  Gradient/Hessian          Data layout
+  Split finding             Parallelism
+  Regularization            Cache usage
+  Sparse handling           Out-of-core
+                             Distributed
 ```
 
-So the model learns a **default direction** for missing values.
+One important idea is organizing data into **column blocks** so that the same data organization can be reused during split finding.
 
-This is a clever idea because it turns missingness from only being a preprocessing problem into something the tree-learning process can handle.
+This is where I started seeing XGBoost as more than just a machine learning formula.
 
----
-
-# ⚙️ SYSTEM DESIGN
-
-This is the part that changed my understanding of XGBoost the most.
-
-When I first thought about XGBoost, I mostly thought about:
-
-```text
-Gradient Boosting
-+
-Decision Trees
-```
-
-But the paper spends a lot of effort on making the whole system efficient.
-
-One important idea is the use of **column blocks**.
-
-Instead of repeatedly reorganizing the same data during training, the data can be stored in a form that makes repeated split finding more efficient.
-
-Simplified:
-
-```text
-Original Data
-
-Rows
- ↓
-┌────────────────────────────┐
-│ Feature 1 | Feature 2 | ...│
-│ Feature 1 | Feature 2 | ...│
-│ Feature 1 | Feature 2 | ...│
-└────────────────────────────┘
-             ↓
-       Column blocks
-             ↓
-   Reuse during training
-             ↓
-      Faster processing
-```
-
-The paper also discusses ideas such as:
-
-- parallel processing
-- cache-aware computation
-- out-of-core learning
-- distributed learning
-
-So the paper is really combining:
-
-```text
-Algorithmic Ideas
-        +
-Systems Engineering
-        =
-Scalable Machine Learning
-```
+It is also a carefully engineered training system.
 
 ---
 
 # 🧩 THE BIG PICTURE
 
-After putting all the pieces together, this is how I currently understand XGBoost:
+After putting the paper together, this is my current mental model:
 
 ```text
-                         XGBOOST
+                         XGBoost
                             │
-          ┌─────────────────┼─────────────────┐
-          │                 │                 │
-          ↓                 ↓                 ↓
-     Optimization      Tree Learning      System Design
-          │                 │                 │
-          ↓                 ↓                 ↓
-   Regularization     Exact splitting    Column blocks
-   Gradients          Approximate         Parallelism
-   Hessian            splitting           Cache efficiency
-   2nd-order          Quantile sketch     Out-of-core
-   approximation      Sparse handling     Distributed
-          │                 │                 │
-          └─────────────────┼─────────────────┘
+        ┌───────────────────┼───────────────────┐
+        ↓                   ↓                   ↓
+   Optimization        Tree Learning       System Design
+        │                   │                   │
+        ↓                   ↓                   ↓
+  Regularization       Split finding      Column blocks
+  Gradient             Exact method       Parallelism
+  Hessian              Approximation      Cache efficiency
+  2nd-order            Quantile sketch    Out-of-core
+  approximation        Sparse handling    Distributed
+        │                   │                   │
+        └───────────────────┼───────────────────┘
                             ↓
-                     Scalable Boosting
+                  Scalable Tree Boosting
 ```
 
-This is probably the most useful diagram for me from the paper because it shows that **XGBoost is not one single technique**.
+This is probably my biggest understanding from the paper:
+
+> **XGBoost is not one single improvement. It is a combination of mathematical optimization, tree-learning methods, and systems engineering.**
 
 ---
 
@@ -860,7 +856,7 @@ I have already used XGBoost in my machine learning projects.
 
 For example, I have used it in a **customer churn prediction project**.
 
-Before reading this paper, I mostly looked at XGBoost from the practical side:
+Before reading the paper, I mostly looked at XGBoost from the practical side:
 
 ```python
 XGBClassifier(
@@ -872,17 +868,17 @@ XGBClassifier(
 )
 ```
 
-I understood what these parameters did at a practical level.
+I understood these parameters at a practical level.
 
-But reading the paper helped me connect some of those parameters to the underlying ideas.
+Reading the paper helped me connect some of them with the underlying ideas.
 
 For example:
 
 ```text
 reg_lambda
-    ↓
+      ↓
 Regularization
-    ↓
+      ↓
 Penalty on leaf weights
 ```
 
@@ -890,73 +886,69 @@ and:
 
 ```text
 max_depth
-    ↓
-Controls tree complexity
-    ↓
-Can affect overfitting
+      ↓
+Limits tree depth
+      ↓
+Controls part of the tree complexity
 ```
 
-I am not claiming that reading the paper suddenly makes me an expert in the internals of XGBoost.
+I am not claiming that reading this paper makes me an expert in the internals of XGBoost.
 
-What changed is that I now have a better mental model of **what is happening underneath the library I am already using.**
+What changed is that I now have a better mental model of **what is happening underneath the library I was already using.**
 
 ---
 
 # 🤔 MY QUESTIONS WHILE READING
 
-These are some questions I had while going through the paper:
+### 1. Why does XGBoost use the Hessian?
 
-### 1. Why does XGBoost need the Hessian?
+I understood the gradient more easily, but initially I was not comfortable with why the second derivative was useful.
 
-I understood the gradient as the direction of change, but initially I wasn't comfortable with why the second derivative was useful.
-
-My current understanding is that it provides information about the curvature of the loss and allows a second-order approximation.
+My current understanding is that the Hessian provides curvature information and allows the objective to be approximated using second-order information.
 
 ---
 
-### 2. Why put regularization directly into the objective?
+### 2. Why is regularization part of the objective?
 
-I initially thought regularization was mainly a parameter we tune.
+I initially thought of regularization mainly as a parameter that I tune.
 
-The paper helped me see that regularization is part of the optimization itself.
+The paper helped me understand that the complexity penalty is included directly in the objective being optimized.
 
 ---
 
-### 3. Why can't we simply check every possible split?
+### 3. Why not check every possible split?
 
-Because as the number of rows and features grows, repeatedly checking all possible split points becomes expensive.
+Because the number of possible split points becomes expensive to evaluate as the dataset grows.
 
-This is where approximate split finding becomes useful.
+This motivates approximate split finding.
 
 ---
 
 ### 4. Why are quantiles useful?
 
-Because instead of considering every possible value, we can select representative candidate split points.
-
-This reduces computation.
+They provide a way to select representative candidate split points instead of checking every possible feature value.
 
 ---
 
 ### 5. Why are the quantiles weighted?
 
-Because the optimization uses gradient/Hessian information, so treating every example equally is not always enough for the split approximation.
+Because the approximate split-finding method uses Hessian-based weights when constructing the candidate distribution.
 
 ---
 
-### 6. How can missing values be handled without manually imputing everything?
+### 6. How are missing values handled?
 
-The sparsity-aware algorithm can learn a default direction for missing values during split finding.
+The sparsity-aware algorithm can learn a default direction for missing values during split evaluation.
 
 ---
 
-### 7. Which improvements are algorithmic and which are system-level?
+### 7. What is the difference between an algorithmic improvement and a system improvement?
 
-This was one of the most useful things I noticed.
+This was one of the most useful distinctions for me.
 
-Some improvements change **how the model learns**.
+Some ideas improve **how the model learns**.
 
-Others change **how efficiently the computer performs the learning**.
+Others improve **how efficiently the computer performs the learning**.
 
 ---
 
@@ -966,43 +958,47 @@ The biggest thing I learned from this paper is that **a good machine learning sy
 
 Before reading the paper, I mainly saw XGBoost as:
 
-> "A very powerful gradient boosting algorithm using decision trees."
+> "A powerful gradient boosting algorithm using decision trees."
 
 After reading it, my understanding became:
 
-> **XGBoost is a combination of optimization ideas, tree-learning techniques, data structures and system-level engineering designed to make gradient tree boosting both effective and scalable.**
+> **XGBoost combines optimization ideas, tree-learning techniques, sparse-data handling, and system-level engineering to make gradient tree boosting effective and scalable.**
 
 The three things I want to remember are:
 
 ### 1. Accuracy + Complexity
 
-The objective does not only care about prediction error.
+The objective considers both prediction loss and model complexity.
 
 ```text
-Good prediction
-      +
+Prediction quality
+        +
 Controlled complexity
-      ↓
-Better objective
+        ↓
+Regularized objective
 ```
 
 ### 2. Exact vs Approximate
 
-Sometimes checking everything is too expensive.
+Checking every possible split can be expensive.
 
 ```text
-Check everything
-      ↓
-Accurate but expensive
+Exact
+  ↓
+More candidate points
+  ↓
+More computation
 
-Use good candidate points
-      ↓
-Much cheaper
+Approximate
+  ↓
+Representative candidate points
+  ↓
+Less computation
 ```
 
 The important question becomes:
 
-> **How much information can I remove without losing too much useful information?**
+> **How much computation can we save while keeping enough information to find useful splits?**
 
 ### 3. Algorithm + System
 
@@ -1011,11 +1007,11 @@ This was probably my biggest takeaway.
 ```text
 Good ML idea
       +
-Efficient implementation
+Efficient algorithm
       +
-Good data handling
+Efficient implementation
       ↓
-Useful ML system
+Scalable ML system
 ```
 
 So when I see a machine learning library now, I want to understand not only:
@@ -1050,13 +1046,13 @@ After reading the paper
 
 "I understand more about XGBoost."
         ↓
-I understand why it uses
-regularization,
+I understand the connection between
+the objective,
 gradients + Hessians,
-split gains,
+leaf weights,
+split evaluation,
 approximate split finding,
-weighted quantiles,
-sparsity-aware learning,
+sparsity handling,
 and system optimizations.
 ```
 
@@ -1068,24 +1064,23 @@ For me, this is what reading research papers is about:
 
 # 📚 PAPER REFERENCE
 
-**Chen, T., & Guestrin, C. (2016).**\
-*XGBoost: A Scalable Tree Boosting System.*\
+**Chen, T., & Guestrin, C. (2016).**
+*XGBoost: A Scalable Tree Boosting System.*
 Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.
 
-Original paper: [https://arxiv.org/abs/1603.02754](https://arxiv.org/abs/1603.02754)
+Original paper: https://arxiv.org/abs/1603.02754
 
 ---
 
-## ⚠️ Note
+## ⚠️ NOTE
 
 This is a **research-paper reading and learning note**.
 
 I am not claiming to have:
 
-- reproduced the experiments from the paper
-- implemented XGBoost from scratch
-- reproduced the reported speedups
-- contributed new research to XGBoost
+* reproduced the experiments from the paper
+* implemented XGBoost from scratch
+* reproduced the reported speedups
+* contributed new research to XGBoost
 
 The purpose of this page is to document how I read the paper, simplify the ideas in my own words, connect them with concepts I already know, and record what I learned.
-
