@@ -16,8 +16,8 @@ I write the concepts in my own words and try to connect the research ideas with 
 
 | Paper                                                                                    | Topic                               | My Status            |
 | ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- |
-| [LoRA: Low-Rank Adaptation of Large Language Models](./papers/lora-low-rank-adaptation/) | LLMs, Fine-Tuning, PEFT             | 📖 Read & Documented |
-| [XGBoost: A Scalable Tree Boosting System](./papers/xgboost-scalable-tree-boosting/)     | Machine Learning, Gradient Boosting | 📖 Read & Documented |
+| [LoRA: Low-Rank Adaptation of Large Language Models](./Papers/lora-low-rank-adaptation/) | LLMs, Fine-Tuning, PEFT             | 📖 Read & Documented |
+| [XGBoost: A Scalable Tree Boosting System](./Papers/xgboost-scalable-tree-boosting/)     | Machine Learning, Gradient Boosting | 📖 Read & Documented |
 
 ---
 
