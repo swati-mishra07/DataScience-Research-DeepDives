@@ -18,6 +18,7 @@ I write the concepts in my own words and try to connect the research ideas with 
 | ---------------------------------------------------------------------------------------- | ----------------------------------- | -------------------- |
 | [LoRA: Low-Rank Adaptation of Large Language Models](./Papers/lora-low-rank-adaptation/) | LLMs, Fine-Tuning, PEFT             | 📖 Read & Documented |
 | [XGBoost: A Scalable Tree Boosting System](./Papers/xgboost-scalable-tree-boosting/)     | Machine Learning, Gradient Boosting | 📖 Read & Documented |
+| [Attention Is All You Need](./papers/attention-is-all-you-need/)                         | Transformers, Attention, NLP        | 📖 Read & Documented |
 
 ---
 
@@ -89,6 +90,7 @@ I document only the parts I have actually studied and try to be transparent abou
 ## 📂 Repository Structure
 
 ```text
+
 DataScience-Research-DeepDives/
 │
 ├── README.md
@@ -100,8 +102,13 @@ DataScience-Research-DeepDives/
     ├── lora-low-rank-adaptation/
     │   └── README.md
     │
-    └── xgboost-scalable-tree-boosting/
+    ├── xgboost-scalable-tree-boosting/
+    │   └── README.md
+    │
+    └── attention-is-all-you-need/
         └── README.md
+```
+
 ```
 
 ---
